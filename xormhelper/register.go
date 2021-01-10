@@ -3,46 +3,81 @@ package xormhelper
 import (
 	"errors"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/laixyz/xormplus"
+	xorm "github.com/laixyz/xormplus"
 	"github.com/laixyz/xormplus/log"
 	"github.com/laixyz/xormplus/names"
 	"sync"
 	"time"
 )
 
+const (
+	SnakeMapper = "snake"
+	SameMapper  = "same"
+	GonicMapper = "gonic"
+)
+
 type XormSession struct {
-	Engine  *xormplus.Engine
-	Session *xormplus.Session
-	Name    string
-	DSN     string
-	Prefix  string
-	Debug   bool
+	engine          *xorm.Engine
+	session         *xorm.Session
+	Name            string
+	DSN             string
+	Prefix          string
+	Mapper          string
+	ConnMaxLifetime time.Duration
+	MaxIdleConns    int
+	MaxOpenConns    int
+	Debug           bool
 }
 
+var ConnMaxLifetimeDefault time.Duration = 30 * time.Second
+var MaxIdleConnsDefault int = 16
+var MaxOpenConnsDefault int = 32
+
 func (xc *XormSession) Connect() (err error) {
-	xc.Engine, err = xormplus.NewEngine("mysql", xc.DSN)
+	xc.engine, err = xorm.NewEngine("mysql", xc.DSN)
 	if err != nil {
 		return err
 	}
-	if xc.Prefix != "" {
-		tbMapper := names.NewPrefixMapper(names.GonicMapper{}, xc.Prefix)
-		xc.Engine.SetTableMapper(tbMapper)
+	var tbMapper names.PrefixMapper
+	switch xc.Mapper {
+	case GonicMapper:
+		tbMapper = names.NewPrefixMapper(names.GonicMapper{}, xc.Prefix)
+	case SameMapper:
+		tbMapper = names.NewPrefixMapper(names.SameMapper{}, xc.Prefix)
+	case SnakeMapper:
+		tbMapper = names.NewPrefixMapper(names.SnakeMapper{}, xc.Prefix)
+	default:
+		tbMapper = names.NewPrefixMapper(names.SnakeMapper{}, xc.Prefix)
 	}
-	xc.Engine.SetConnMaxLifetime(25 * time.Second)
-	xc.Engine.SetMaxIdleConns(64)
-	xc.Engine.SetMaxOpenConns(16)
-	if xc.Debug {
-		xc.Engine.ShowSQL(true)
-		//xorm 日志设置，只显示错误日志
-		xc.Engine.Logger().SetLevel(log.LOG_DEBUG)
+	xc.engine.SetTableMapper(tbMapper)
+	if xc.ConnMaxLifetime > 0 {
+		xc.engine.SetConnMaxLifetime(xc.ConnMaxLifetime)
 	} else {
-		xc.Engine.Logger().SetLevel(log.LOG_ERR)
+		xc.engine.SetConnMaxLifetime(ConnMaxLifetimeDefault)
 	}
-	xc.Session = xc.Engine.NewSession()
+	if xc.MaxIdleConns > 0 {
+		xc.engine.SetMaxIdleConns(xc.MaxIdleConns)
+	} else {
+		xc.engine.SetMaxIdleConns(MaxIdleConnsDefault)
+	}
+	if xc.MaxOpenConns > 0 {
+		xc.engine.SetMaxOpenConns(xc.MaxOpenConns)
+	} else {
+		xc.engine.SetMaxOpenConns(MaxOpenConnsDefault)
+	}
+
+	if xc.Debug {
+		xc.engine.ShowSQL(true)
+		//xorm 日志设置，只显示错误日志
+		xc.engine.Logger().SetLevel(log.LOG_DEBUG)
+	} else {
+		xc.engine.Logger().SetLevel(log.LOG_ERR)
+	}
+	xc.session = xc.engine.NewSession()
 	return nil
 }
 func (xc *XormSession) Close() error {
-	return xc.Engine.Close()
+	return xc.engine.Close()
 }
 
 type Xorms struct {
@@ -52,37 +87,49 @@ type Xorms struct {
 
 var PublicXorms Xorms = Xorms{Engine: make(map[string]*XormSession)}
 
+// Register
+func (xc *XormSession) Register() error {
+	err := xc.Connect()
+	if err != nil {
+		return err
+	}
+	PublicXorms.Lock()
+	defer PublicXorms.Unlock()
+	if _, ok := PublicXorms.Engine[xc.Name]; ok {
+		delete(PublicXorms.Engine, xc.Name)
+	}
+	PublicXorms.Engine[xc.Name] = xc
+	return nil
+}
+
 /*
 Register 注册一个mysql连接池
 范例:
-	Register("test:test@(127.0.0.1:3306)/db?charset=utf8mb4&parseTime=True&loc=Local")
-	给连接取个名称
+	给连接池取个名称
 	Register("default","test:test@(127.0.0.1:3306)/db?charset=utf8mb4&parseTime=True&loc=Local")
 	指定表前缀
 	Register("default","test:test@(127.0.0.1:3306)/db?charset=utf8mb4&parseTime=True&loc=Local","prefix_")
 	设置调试模式，会打印sql语句
 	Register("default","test:test@(127.0.0.1:3306)/db?charset=utf8mb4&parseTime=True&loc=Local","prefix_","true")
+	指定xorm的mapper规则
+	Register("default","test:test@(127.0.0.1:3306)/db?charset=utf8mb4&parseTime=True&loc=Local","prefix_","true","gonic)
 */
-func MySQLRegister(params ...string) error {
+func MySQLRegister(poolName, dsn string, params ...string) error {
 	var newXormConfig XormSession
-	paramsLen := len(params)
-	if paramsLen >= 4 {
-		if params[3] == "true" {
-			newXormConfig.Debug = true
-		}
+
+	newXormConfig.Name = poolName
+	newXormConfig.DSN = dsn
+	l := len(params)
+	if l > 0 && params[0] != "" {
+		newXormConfig.Prefix = params[0]
 	}
-	if paramsLen >= 3 {
-		newXormConfig.Name = params[0]
-		newXormConfig.DSN = params[1]
-		newXormConfig.Prefix = params[2]
-	} else if paramsLen == 2 {
-		newXormConfig.Name = params[0]
-		newXormConfig.DSN = params[1]
-	} else if paramsLen == 1 {
-		newXormConfig.Name = "default"
-		newXormConfig.DSN = params[0]
+	if l > 1 && params[1] == "true" {
+		newXormConfig.Debug = true
+	}
+	if l > 2 && params[2] != "" {
+		newXormConfig.Mapper = params[2]
 	} else {
-		return errors.New("the XORM Register function param failure")
+		newXormConfig.Mapper = SnakeMapper
 	}
 	err := newXormConfig.Connect()
 	if err != nil {
@@ -98,22 +145,24 @@ func MySQLRegister(params ...string) error {
 }
 
 // Using 使用指定的名字的连接池， 不指定默认为default
-func Using(params ...string) (*xormplus.Session, *xormplus.Engine, error) {
+func Using(params ...string) (*xorm.Session, *xorm.Engine, error) {
 	PublicXorms.Lock()
 	defer PublicXorms.Unlock()
 	var name string
 	if len(params) == 0 {
 		name = "default"
+	} else {
+		name = params[0]
 	}
 	if _, ok := PublicXorms.Engine[name]; ok {
-		if err := PublicXorms.Engine[name].Engine.Ping(); err != nil {
+		if err := PublicXorms.Engine[name].engine.Ping(); err != nil {
 			err = PublicXorms.Engine[name].Connect()
 			if err != nil {
 				return nil, nil, err
 			}
-			return PublicXorms.Engine[name].Session, PublicXorms.Engine[name].Engine, err
+			return PublicXorms.Engine[name].session, PublicXorms.Engine[name].engine, err
 		}
-		return PublicXorms.Engine[name].Session, PublicXorms.Engine[name].Engine, nil
+		return PublicXorms.Engine[name].session, PublicXorms.Engine[name].engine, nil
 	}
 	return nil, nil, errors.New("the mysql connect not register")
 }
