@@ -343,6 +343,8 @@ func SQLType2Type(st SQLType) reflect.Type {
 		return reflect.TypeOf(uint16(1))
 	case MediumInt, Int, Integer, Serial:
 		return reflect.TypeOf(int32(1))
+	case UInt, UMediumInt:
+		return reflect.TypeOf(uint32(1))
 	case Bit, TinyInt:
 		return reflect.TypeOf(int8(1))
 	case UTinyInt:
