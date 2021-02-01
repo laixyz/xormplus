@@ -551,6 +551,9 @@ func (db *mysql) CreateTableSQL(table *schemas.Table, tableName string) ([]strin
 		for _, colName := range table.ColumnsSeq() {
 			col := table.GetColumn(colName)
 			s, _ := ColumnString(db, col, col.IsPrimaryKey && len(pkList) == 1)
+			if strings.Index(s, "_UNSIGNED") > 0 {
+				s = strings.Replace(s, "_UNSIGNED", " UNSIGNED", -1)
+			}
 			sql += s
 			sql = strings.TrimSpace(sql)
 			if len(col.Comment) > 0 {
@@ -584,6 +587,7 @@ func (db *mysql) CreateTableSQL(table *schemas.Table, tableName string) ([]strin
 	if db.rowFormat != "" {
 		sql += " ROW_FORMAT=" + db.rowFormat
 	}
+	fmt.Println(sql)
 	return []string{sql}, true
 }
 
