@@ -17,7 +17,6 @@ const (
 )
 
 type XormSession struct {
-	engine          *xorm.Engine
 	session         *xorm.Session
 	Name            string
 	DSN             string
@@ -34,7 +33,7 @@ var MaxIdleConnsDefault int = 16
 var MaxOpenConnsDefault int = 32
 
 func (xc *XormSession) Connect() (err error) {
-	xc.engine, err = xorm.NewEngine("mysql", xc.DSN)
+	engine, err := xorm.NewEngine("mysql", xc.DSN)
 	if err != nil {
 		return err
 	}
@@ -49,35 +48,35 @@ func (xc *XormSession) Connect() (err error) {
 	default:
 		tbMapper = names.NewPrefixMapper(names.SnakeMapper{}, xc.Prefix)
 	}
-	xc.engine.SetTableMapper(tbMapper)
+	engine.SetTableMapper(tbMapper)
 	if xc.ConnMaxLifetime > 0 {
-		xc.engine.SetConnMaxLifetime(xc.ConnMaxLifetime)
+		engine.SetConnMaxLifetime(xc.ConnMaxLifetime)
 	} else {
-		xc.engine.SetConnMaxLifetime(ConnMaxLifetimeDefault)
+		engine.SetConnMaxLifetime(ConnMaxLifetimeDefault)
 	}
 	if xc.MaxIdleConns > 0 {
-		xc.engine.SetMaxIdleConns(xc.MaxIdleConns)
+		engine.SetMaxIdleConns(xc.MaxIdleConns)
 	} else {
-		xc.engine.SetMaxIdleConns(MaxIdleConnsDefault)
+		engine.SetMaxIdleConns(MaxIdleConnsDefault)
 	}
 	if xc.MaxOpenConns > 0 {
-		xc.engine.SetMaxOpenConns(xc.MaxOpenConns)
+		engine.SetMaxOpenConns(xc.MaxOpenConns)
 	} else {
-		xc.engine.SetMaxOpenConns(MaxOpenConnsDefault)
+		engine.SetMaxOpenConns(MaxOpenConnsDefault)
 	}
 
 	if xc.Debug {
-		xc.engine.ShowSQL(true)
+		engine.ShowSQL(true)
 		//xorm 日志设置，只显示错误日志
-		xc.engine.Logger().SetLevel(log.LOG_DEBUG)
+		engine.Logger().SetLevel(log.LOG_DEBUG)
 	} else {
-		xc.engine.Logger().SetLevel(log.LOG_ERR)
+		engine.Logger().SetLevel(log.LOG_ERR)
 	}
-	xc.session = xc.engine.NewSession()
+	xc.session = engine.NewSession()
 	return nil
 }
 func (xc *XormSession) Close() error {
-	return xc.engine.Close()
+	return xc.session.Engine().Close()
 }
 
 type Xorms struct {
@@ -114,7 +113,7 @@ Register 注册一个mysql连接池
 	指定xorm的mapper规则
 	Register("default","test:test@(127.0.0.1:3306)/db?charset=utf8mb4&parseTime=True&loc=Local","prefix_","true","gonic)
 */
-func MySQLRegister(poolName, dsn string, params ...string) error {
+func Register(poolName, dsn string, params ...string) error {
 	var newXormConfig XormSession
 
 	newXormConfig.Name = poolName
@@ -145,7 +144,7 @@ func MySQLRegister(poolName, dsn string, params ...string) error {
 }
 
 // Using 使用指定的名字的连接池， 不指定默认为default
-func Using(params ...string) (*xorm.Session, *xorm.Engine, error) {
+func Using(params ...string) (*xorm.Session, error) {
 	PublicXorms.Lock()
 	defer PublicXorms.Unlock()
 	var name string
@@ -155,16 +154,16 @@ func Using(params ...string) (*xorm.Session, *xorm.Engine, error) {
 		name = params[0]
 	}
 	if _, ok := PublicXorms.Engine[name]; ok {
-		if err := PublicXorms.Engine[name].engine.Ping(); err != nil {
+		if err := PublicXorms.Engine[name].session.Ping(); err != nil {
 			err = PublicXorms.Engine[name].Connect()
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
-			return PublicXorms.Engine[name].session, PublicXorms.Engine[name].engine, err
+			return PublicXorms.Engine[name].session, err
 		}
-		return PublicXorms.Engine[name].session, PublicXorms.Engine[name].engine, nil
+		return PublicXorms.Engine[name].session, nil
 	}
-	return nil, nil, errors.New("the mysql connect not register")
+	return nil, errors.New("the mysql connect not register")
 }
 
 /* Close 关闭连接
