@@ -10,168 +10,189 @@ type Model struct {
 	orderBy string        `xorm:"-" json:"-"`
 }
 
-func (obj *Model) SessionInit(session *xorm.Session, tableNameOrBean interface{}) {
+func (m *Model) SessionInit(session *xorm.Session, tableNameOrBean interface{}) {
 	session.Table(tableNameOrBean)
-	obj.session = session
+	m.session = session
 }
 
-func (obj *Model) Where(query interface{}, args ...interface{}) *Model {
-	obj.session = obj.session.Where(query, args...)
-	return obj
+func (m *Model) Where(query interface{}, args ...interface{}) *Model {
+	m.session = m.session.Where(query, args...)
+	return m
 }
 
-func (obj *Model) And(column string, args ...interface{}) *Model {
-	obj.session = obj.session.And(column, args...)
-	return obj
+func (m *Model) And(column string, args ...interface{}) *Model {
+	m.session = m.session.And(column, args...)
+	return m
 }
 
-func (obj *Model) SQL(query interface{}, args ...interface{}) *Model {
-	obj.session = obj.session.SQL(query, args...)
-	return obj
+func (m *Model) SQL(query interface{}, args ...interface{}) *Model {
+	m.session = m.session.SQL(query, args...)
+	return m
 }
 
-func (obj *Model) Or(column string, args ...interface{}) *Model {
-	obj.session = obj.session.Or(column, args...)
-	return obj
+func (m *Model) Or(column string, args ...interface{}) *Model {
+	m.session = m.session.Or(column, args...)
+	return m
 }
 
-func (obj *Model) Cols(columns ...string) *Model {
-	obj.session = obj.session.Cols(columns...)
-	return obj
+func (m *Model) Cols(columns ...string) *Model {
+	m.session = m.session.Cols(columns...)
+	return m
 }
 
-func (obj *Model) AllCols() *Model {
-	obj.session = obj.session.AllCols()
-	return obj
+func (m *Model) AllCols() *Model {
+	m.session = m.session.AllCols()
+	return m
 }
 
-func (obj *Model) Asc(colNames ...string) *Model {
-	obj.session = obj.session.Asc(colNames...)
-	obj.orderBy = obj.session.GetOrderBy()
-	return obj
+func (m *Model) Asc(colNames ...string) *Model {
+	m.session = m.session.Asc(colNames...)
+	m.orderBy = m.session.GetOrderBy()
+	return m
 }
 
-func (obj *Model) Desc(colNames ...string) *Model {
-	obj.session = obj.session.Desc(colNames...)
-	obj.orderBy = obj.session.GetOrderBy()
-	return obj
+func (m *Model) Desc(colNames ...string) *Model {
+	m.session = m.session.Desc(colNames...)
+	m.orderBy = m.session.GetOrderBy()
+	return m
 }
 
-func (obj *Model) OrderBy(order string) *Model {
-	obj.session = obj.session.OrderBy(order)
-	obj.orderBy = obj.session.GetOrderBy()
-	return obj
+func (m *Model) OrderBy(order string) *Model {
+	m.session = m.session.OrderBy(order)
+	m.orderBy = m.session.GetOrderBy()
+	return m
 }
 
-func (obj *Model) GroupBy(keys string) *Model {
-	obj.session = obj.session.GroupBy(keys)
-	return obj
+func (m *Model) GroupBy(keys string) *Model {
+	m.session = m.session.GroupBy(keys)
+	return m
 }
 
-func (obj *Model) Distinct(columns ...string) *Model {
-	obj.session = obj.session.Distinct(columns...)
-	return obj
+func (m *Model) Distinct(columns ...string) *Model {
+	m.session = m.session.Distinct(columns...)
+	return m
 }
 
-func (obj *Model) Having(conditions string) *Model {
-	obj.session = obj.session.Having(conditions)
-	return obj
+func (m *Model) Having(conditions string) *Model {
+	m.session = m.session.Having(conditions)
+	return m
 }
 
-func (obj *Model) IN(column string, args ...interface{}) *Model {
-	obj.session = obj.session.In(column, args...)
-	return obj
+func (m *Model) IN(column string, args ...interface{}) *Model {
+	m.session = m.session.In(column, args...)
+	return m
 }
 
-func (obj *Model) NotIn(column string, args ...interface{}) *Model {
-	obj.session = obj.session.NotIn(column, args...)
-	return obj
+func (m *Model) NotIn(column string, args ...interface{}) *Model {
+	m.session = m.session.NotIn(column, args...)
+	return m
 }
 
-func (obj *Model) Limit(limit int, start ...int) *Model {
-	obj.session = obj.session.Limit(limit, start...)
-	return obj
+func (m *Model) Limit(limit int, start ...int) *Model {
+	m.session = m.session.Limit(limit, start...)
+	return m
 }
 
-func (obj *Model) FilterID(id interface{}) *Model {
-	obj.session = obj.session.ID(id)
-	return obj
+func (m *Model) FilterID(id interface{}) *Model {
+	m.session = m.session.ID(id)
+	return m
 }
 
-func (obj *Model) Update() (int64, error) {
-	return obj.session.Update(obj)
+func (m *Model) Update() (int64, error) {
+	return m.session.Update(m)
 }
 
-func (obj *Model) LastSQL() (string, []interface{}) {
-	return obj.session.LastSQL()
+func (m *Model) LastSQL() (string, []interface{}) {
+	return m.session.LastSQL()
 }
 
-func (obj *Model) Save() (int64, error) {
-	return obj.session.Insert(obj)
+func (m *Model) Save() (int64, error) {
+	return m.session.Insert(m)
 }
 
-func (obj *Model) Delete(bean interface{}) (int64, error) {
-	return obj.session.Delete(bean)
+func (m *Model) Delete(bean interface{}) (int64, error) {
+	return m.session.Delete(bean)
 }
 
-func (obj *Model) Exist(bean ...interface{}) (bool, error) {
-	return obj.session.Exist(bean...)
+func (m *Model) Exist(bean ...interface{}) (bool, error) {
+	return m.session.Exist(bean...)
 }
 
-func (obj *Model) Count(bean ...interface{}) (int64, error) {
-	return obj.session.Count(bean...)
+func (m *Model) Count(bean ...interface{}) (int64, error) {
+	return m.session.Count(bean...)
 }
 
-func (obj *Model) FindOne(bean interface{}) (bool, error) {
-	if obj.orderBy != "" {
-		obj.session.OrderBy(obj.orderBy)
+func (m *Model) FindOne(bean interface{}) (bool, error) {
+	if m.orderBy != "" {
+		m.session.OrderBy(m.orderBy)
+		defer func() {
+			m.orderBy = ""
+		}()
 	}
-	return obj.session.Get(bean)
+	return m.session.Get(bean)
 }
 
-func (obj *Model) FindAll(rowsSlicePtr interface{}, condiBean ...interface{}) error {
-	if obj.orderBy != "" {
-		obj.session.OrderBy(obj.orderBy)
+func (m *Model) FindAll(rowsSlicePtr interface{}, condiBean ...interface{}) error {
+	if m.orderBy != "" {
+		m.session.OrderBy(m.orderBy)
+		defer func() {
+			m.orderBy = ""
+		}()
 	}
-	return obj.session.Find(rowsSlicePtr, condiBean...)
+	return m.session.Find(rowsSlicePtr, condiBean...)
 }
 
-func (obj *Model) FindAndCount(rowsSlicePtr interface{}, condiBean ...interface{}) (int64, error) {
-	if obj.orderBy != "" {
-		obj.session.OrderBy(obj.orderBy)
+func (m *Model) FindAndCount(rowsSlicePtr interface{}, condiBean ...interface{}) (int64, error) {
+	if m.orderBy != "" {
+		m.session.OrderBy(m.orderBy)
+		defer func() {
+			m.orderBy = ""
+		}()
 	}
-	return obj.session.FindAndCount(rowsSlicePtr, condiBean...)
+
+	return m.session.FindAndCount(rowsSlicePtr, condiBean...)
 }
 
-func (obj *Model) Rows(bean interface{}) (*xorm.Rows, error) {
-	return obj.session.Rows(bean)
+func (m *Model) Rows(bean interface{}) (*xorm.Rows, error) {
+	if m.orderBy != "" {
+		m.session.OrderBy(m.orderBy)
+		defer func() {
+			m.orderBy = ""
+		}()
+	}
+	return m.session.Rows(bean)
 }
 
-func (obj *Model) Select(page, pagesize int, data interface{}) (currentPage, currentPagesize, totalRecords int64, totalPages int64, err error) {
-	totalRecords, err = obj.session.Count()
+func (m *Model) Pagination(page, pagesize int, data interface{}) (currentPage, currentPagesize, totalRecords, totalPages int, err error) {
+	total, err := m.session.Count()
 	if err != nil {
 		return
 	}
-	if totalRecords == 0 {
+	if total == 0 {
 		return
 	}
 	if page < 1 {
 		currentPage = 1
 	} else {
-		currentPage = int64(page)
+		currentPage = page
 	}
 	if pagesize < 1 {
 		pagesize = 1
 	}
-	currentPagesize = int64(pagesize)
+	totalRecords = int(total)
+	currentPagesize = pagesize
 	limit := pagesize
 	start := (page - 1) * pagesize
-	totalPages = int64(math.Ceil(float64(totalRecords) / float64(pagesize)))
-
-	obj.session.Limit(limit, start)
-	if obj.orderBy != "" {
-		obj.session.OrderBy(obj.orderBy)
+	totalPages = int(math.Ceil(float64(totalRecords) / float64(pagesize)))
+	if totalRecords > pagesize {
+		m.session.Limit(limit, start)
 	}
-	err = obj.session.Find(data)
+	if m.orderBy != "" {
+		m.session.OrderBy(m.orderBy)
+		defer func() {
+			m.orderBy = ""
+		}()
+	}
+	err = m.session.Find(data)
 	return currentPage, currentPagesize, totalRecords, totalPages, err
 }
