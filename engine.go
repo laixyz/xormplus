@@ -67,7 +67,7 @@ func NewEngine(driverName string, dataSourceName string) (*Engine, error) {
 func newEngine(driverName, dataSourceName string, dialect dialects.Dialect, db *core.DB) (*Engine, error) {
 	cacherMgr := caches.NewManager()
 	mapper := names.NewCacheMapper(new(names.SnakeMapper))
-	tagParser := tags.NewParser("xorm", dialect, mapper, mapper, cacherMgr)
+	tagParser := tags.NewParser(TagName, dialect, mapper, mapper, cacherMgr)
 
 	engine := &Engine{
 		dialect:        dialect,
